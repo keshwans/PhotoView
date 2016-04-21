@@ -1,4 +1,5 @@
-<merge xmlns:android="http://schemas.android.com/apk/res/android">
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -7,7 +8,10 @@
         <uk.co.senab.photoview.PhotoView
             android:id="@+id/iv_photo"
             android:layout_width="fill_parent"
-            android:layout_height="fill_parent" />
+            android:layout_height="200dp"
+            app:scaleType="TopCenterCrop"
+            />
+
 
         <TextView
             android:id="@+id/tv_current_matrix"

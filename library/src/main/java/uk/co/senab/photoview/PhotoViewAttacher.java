@@ -63,7 +63,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     static final int EDGE_LEFT = 0;
     static final int EDGE_RIGHT = 1;
     static final int EDGE_BOTH = 2;
-
     static int SINGLE_TOUCH = 1;
 
     private float mMinScale = DEFAULT_MIN_SCALE;
@@ -145,15 +144,15 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     private OnScaleChangeListener mScaleChangeListener;
     private OnSingleFlingListener mSingleFlingListener;
 
+
     private int mIvTop, mIvRight, mIvBottom, mIvLeft;
     private FlingRunnable mCurrentFlingRunnable;
     private int mScrollEdge = EDGE_BOTH;
     private float mBaseRotation;
 
     private boolean mZoomEnabled;
-    private ScaleType mScaleType = ScaleType.FIT_CENTER;
-	private boolean mTopCrop = false;
-	
+    private PhotoView.CustomScaleType mScaleType = PhotoView.CustomScaleType.FIT_CENTER;
+
     public PhotoViewAttacher(ImageView imageView) {
         this(imageView, true);
     }
@@ -206,6 +205,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
                         }
                         return false;
                     }
+
                 });
 
         mGestureDetector.setOnDoubleTapListener(new DefaultOnDoubleTapListener(this));
@@ -238,7 +238,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
     public boolean canZoom() {
         return mZoomEnabled;
     }
-	
 
     /**
      * Clean-up the resources attached to this object. This needs to be called when the ImageView is
@@ -312,6 +311,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         setRotationBy(mBaseRotation);
         checkAndDisplayMatrix();
     }
+
 
     /**
      * @deprecated use {@link #setRotationTo(float)}
@@ -391,13 +391,9 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
     @Override
     public ScaleType getScaleType() {
-        return mScaleType;
+        return mScaleType.toScaleType();
     }
 
-	public boolean isTopCrop(){
-		return mTopCrop;
-	}
-	
     @Override
     public void onDrag(float dx, float dy) {
         if (mScaleDragDetector.isScaling()) {
@@ -691,12 +687,27 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
     @Override
     public void setScaleType(ScaleType scaleType) {
-        if (isSupportedScaleType(scaleType) && scaleType != mScaleType) {
-            mScaleType = scaleType;
+        if (isSupportedScaleType(scaleType) && scaleType != mScaleType.toScaleType()) {
+            switch (scaleType) {
+                case CENTER: mScaleType = PhotoView.CustomScaleType.CENTER;
+                case CENTER_CROP: mScaleType = PhotoView.CustomScaleType.CENTER_CROP;
+                case CENTER_INSIDE: mScaleType = PhotoView.CustomScaleType.CENTER_INSIDE;
+                case FIT_CENTER: mScaleType = PhotoView.CustomScaleType.FIT_CENTER;
+                case FIT_END: mScaleType = PhotoView.CustomScaleType.FIT_END;
+                case FIT_START: mScaleType = PhotoView.CustomScaleType.FIT_START;
+                case FIT_XY: mScaleType = PhotoView.CustomScaleType.FIT_XY;
+                case MATRIX: mScaleType = PhotoView.CustomScaleType.MATRIX;
+            }
 
             // Finally update
             update();
         }
+    }
+
+    public void setCustomScaleType(PhotoView.CustomScaleType scaleType) {
+        mScaleType = scaleType;
+
+        update();
     }
 
     @Override
@@ -704,14 +715,6 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         mZoomEnabled = zoomable;
         update();
     }
-	
-	public void setTopCrop(boolean topCrop){
-		mTopCrop=topCrop;
-		if(mTopCrop){
-				mZoomEnabled=true;
-		}
-		update();
-	}
 
     public void update() {
         ImageView imageView = getImageView();
@@ -934,47 +937,49 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
         mBaseMatrix.reset();
 
+        boolean initZoomAtMax = false;
+        if(imageView instanceof PhotoView)
+            initZoomAtMax = ((PhotoView)imageView).initZoomAtMax();
+
         final float widthScale = viewWidth / drawableWidth;
         final float heightScale = viewHeight / drawableHeight;
-		
-		if(mTopCrop){
-			//Code from http://stackoverflow.com/questions/6330084/imageview-scaling-top-crop
-            if (d != null) {
-				RectF mTempSrc = new RectF(0, 0, drawableWidth, drawableHeight);
-				RectF mTempDst = new RectF(0, 0, viewWidth, viewHeight);
 
-                float floatLeft = (float) imageView.getLeft();
-                float floatRight = (float) imageView.getRight();
-                int bottom = imageView.getBottom();
-                int top = imageView.getTop();
-
-                int frameHeight = bottom - top;
-
-                if (drawableWidth != -1) {
-                    float scaleFactor = (floatRight - floatLeft) / drawableWidth;
-                    if (scaleFactor * drawableHeight < frameHeight) {
-        				mBaseMatrix
-                            .setRectToRect(mTempSrc, mTempDst, ScaleToFit.CENTER);
-                    } else {
-                        mBaseMatrix.setScale(scaleFactor, scaleFactor);
-                    }
-                }
-            }
-		} else if (mScaleType == ScaleType.CENTER) {
+        if (mScaleType == PhotoView.CustomScaleType.CENTER) {
             mBaseMatrix.postTranslate((viewWidth - drawableWidth) / 2F,
                     (viewHeight - drawableHeight) / 2F);
 
-        } else if (mScaleType == ScaleType.CENTER_CROP) {
-            float scale = Math.max(widthScale, heightScale);
+        } else if (mScaleType == PhotoView.CustomScaleType.CENTER_CROP) {
+            float scale = getScale(initZoomAtMax, widthScale, heightScale);
             mBaseMatrix.postScale(scale, scale);
             mBaseMatrix.postTranslate((viewWidth - drawableWidth * scale) / 2F,
                     (viewHeight - drawableHeight * scale) / 2F);
 
-        } else if (mScaleType == ScaleType.CENTER_INSIDE) {
-            float scale = Math.min(1.0f, Math.min(widthScale, heightScale));
+        } else if (mScaleType == PhotoView.CustomScaleType.CENTER_INSIDE) {
+            float scale = mMaxScale;
+            if(!initZoomAtMax)
+                scale = Math.min(1.0f, Math.min(widthScale, heightScale));
             mBaseMatrix.postScale(scale, scale);
             mBaseMatrix.postTranslate((viewWidth - drawableWidth * scale) / 2F,
                     (viewHeight - drawableHeight * scale) / 2F);
+
+        } else if ( mScaleType == PhotoView.CustomScaleType.TOP_LEFT_CROP ||
+                mScaleType == PhotoView.CustomScaleType.TOP_CENTER_CROP ||
+                mScaleType == PhotoView.CustomScaleType.TOP_RIGHT_CROP ||
+                mScaleType == PhotoView.CustomScaleType.BOTTOM_LEFT_CROP ||
+                mScaleType == PhotoView.CustomScaleType.BOTTOM_CENTER_CROP ||
+                mScaleType == PhotoView.CustomScaleType.BOTTOM_RIGHT_CROP ||
+                mScaleType == PhotoView.CustomScaleType.CENTER_LEFT_CROP ||
+                mScaleType == PhotoView.CustomScaleType.CENTER_RIGHT_CROP) {
+            float scale = getScale(initZoomAtMax, widthScale, heightScale);
+            mBaseMatrix.postScale(scale, scale);
+            mBaseMatrix.postTranslate(getTranslateX(viewWidth, drawableWidth, scale),
+                    getTranslateY(viewHeight, drawableHeight, scale));
+
+        } else if (mScaleType == PhotoView.CustomScaleType.MATCH_WIDTH) {
+            mBaseMatrix.postScale(widthScale, widthScale);
+
+        } else if (mScaleType == PhotoView.CustomScaleType.MATCH_HEIGHT) {
+            mBaseMatrix.postScale(heightScale, heightScale);
 
         } else {
             RectF mTempSrc = new RectF(0, 0, drawableWidth, drawableHeight);
@@ -986,8 +991,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
 
             switch (mScaleType) {
                 case FIT_CENTER:
-                    mBaseMatrix
-                            .setRectToRect(mTempSrc, mTempDst, ScaleToFit.CENTER);
+                    mBaseMatrix.setRectToRect(mTempSrc, mTempDst, ScaleToFit.CENTER);
                     break;
 
                 case FIT_START:
@@ -1008,6 +1012,52 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
         }
 
         resetMatrix();
+    }
+
+    private float getTranslateY(float viewHeight, int drawableHeight, float scale) {
+        switch (mScaleType) {
+            case TOP_LEFT_CROP:
+            case TOP_RIGHT_CROP:
+            case TOP_CENTER_CROP:
+                return 0;
+            case BOTTOM_LEFT_CROP:
+            case BOTTOM_RIGHT_CROP:
+            case BOTTOM_CENTER_CROP:
+                return viewHeight - drawableHeight * scale;
+            case CENTER_LEFT_CROP:
+            case CENTER_RIGHT_CROP:
+                return (viewHeight - drawableHeight * scale) / 2F;
+        }
+
+        Log.e(LOG_TAG, "getTranslateX should only by called for custom scale types");
+        return 0;
+    }
+
+    private float getTranslateX(float viewWidth, int drawableWidth, float scale) {
+        switch (mScaleType) {
+            case TOP_LEFT_CROP:
+            case CENTER_LEFT_CROP:
+            case BOTTOM_LEFT_CROP:
+                return 0;
+            case TOP_RIGHT_CROP:
+            case CENTER_RIGHT_CROP:
+            case BOTTOM_RIGHT_CROP:
+                return viewWidth - drawableWidth * scale;
+            case TOP_CENTER_CROP:
+            case BOTTOM_CENTER_CROP:
+                return viewWidth - drawableWidth * scale / 2F;
+
+        }
+
+        Log.e(LOG_TAG, "getTranslateX should only by called for custom scale types");
+        return 0;
+    }
+
+    private float getScale(boolean initZoomAtMax, float widthScale, float heightScale) {
+        float scale = mMaxScale;
+        if(!initZoomAtMax)
+            scale = Math.max(widthScale, heightScale);
+        return scale;
     }
 
     private int getImageViewWidth(ImageView imageView) {
@@ -1078,6 +1128,7 @@ public class PhotoViewAttacher implements IPhotoView, View.OnTouchListener,
          * A simple callback where out of photo happened;
          * */
         void onOutsidePhotoTap();
+
     }
 
     /**

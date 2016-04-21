@@ -25,10 +25,10 @@ import android.widget.ImageView;
 
 public interface IPhotoView {
 
-    float DEFAULT_MAX_SCALE = 3.0f;
-    float DEFAULT_MID_SCALE = 1.75f;
-    float DEFAULT_MIN_SCALE = 1.0f;
-    int DEFAULT_ZOOM_DURATION = 200;
+    public static final float DEFAULT_MAX_SCALE = 3.0f;
+    public static final float DEFAULT_MID_SCALE = 1.75f;
+    public static final float DEFAULT_MIN_SCALE = 1.0f;
+    public static final int DEFAULT_ZOOM_DURATION = 200;
 
     /**
      * Returns true if the PhotoView is set to allow zooming of Photos.
@@ -58,7 +58,7 @@ public interface IPhotoView {
      * Gets the Display Matrix of the currently displayed Drawable. The Rectangle is considered
      * relative to this View and includes all scaling and translations.
      *
-     * @return copy of current Display Matrix
+     * @return - true if rectangle was applied successfully
      */
     Matrix getDisplayMatrix();
 
@@ -362,11 +362,11 @@ public interface IPhotoView {
      * @param onScaleChangeListener OnScaleChangeListener instance
      */
     void setOnScaleChangeListener(PhotoViewAttacher.OnScaleChangeListener onScaleChangeListener);
-
     /**
      * Will report back about fling(single touch)
      *
      * @param onSingleFlingListener OnSingleFlingListener instance
      */
     void setOnSingleFlingListener(PhotoViewAttacher.OnSingleFlingListener onSingleFlingListener);
+
 }

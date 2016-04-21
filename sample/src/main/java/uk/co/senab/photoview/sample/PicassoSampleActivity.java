@@ -17,7 +17,8 @@ public class PicassoSampleActivity extends AppCompatActivity {
         PhotoView photoView = (PhotoView) findViewById(R.id.iv_photo);
 
         Picasso.with(this)
-                .load("http://pbs.twimg.com/media/Bist9mvIYAAeAyQ.jpg")
+                .load("http://cdn.media.content.onebot.timeinc.com/net/timeinc/img2/people/i/2016/news/160502/james-franco-435.jpg")
+//                .load("http://pbs.twimg.com/media/Bist9mvIYAAeAyQ.jpg")
                 .into(photoView);
     }
 }
